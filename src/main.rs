@@ -15,7 +15,7 @@ struct Note {
     id: i32,
     ticket_id: i32,
     content: String,
-    date: i64,
+    date: String,
 }
 
 fn main() {
@@ -36,6 +36,7 @@ fn main() {
                 .short("n")
                 .long("note")
                 .takes_value(true)
+                .required(false)
                 .help("Note to add for the ticket provided"),
         )
         .get_matches();
@@ -53,6 +54,13 @@ fn main() {
 
     let ticket = get_ticket(&mut conn, ticket.to_string()).expect("Failed to deserialize row");
 
+    if let Some(content) = matches.value_of("note") {
+        match create_new_note(&mut conn, ticket.id, content) {
+            Ok(_) => info!("Successfully created new note"),
+            Err(_) => warn!("Failed to create new note"),
+        }
+    }
+
     let notes = get_notes_from_ticket(&mut conn, ticket.id);
     for note in notes {
         println!("{}", note.content);
@@ -66,7 +74,7 @@ fn initialize_db(conn: &mut rusqlite::Connection) -> Result<()> {
     tx.execute(
         "CREATE TABLE IF NOT EXISTS TICKETS (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            name        TEXT NOT NULL unique
+            name        TEXT NOT NULL UNIQUE
         )",
         [],
     )?;
@@ -75,8 +83,8 @@ fn initialize_db(conn: &mut rusqlite::Connection) -> Result<()> {
         "CREATE TABLE IF NOT EXISTS NOTES (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             ticket_id   INTEGER NOT NULL,
-            content     TEXT NOT NULL,
-            date        INTEGER NOT NULL,
+            content     TEXT NOT NULL UNIQUE,
+            date        TEXT NOT NULL,
             FOREIGN KEY (ticket_id) REFERENCES TICKETS(row_id)
 
         )",
@@ -93,7 +101,7 @@ fn create_new_ticket(conn: &mut rusqlite::Connection, ticket: String) -> Result<
 fn create_new_note(
     conn: &mut rusqlite::Connection,
     ticket_id: i32,
-    content: String,
+    content: &str,
 ) -> Result<usize> {
     let date = Utc::now();
 
@@ -106,16 +114,14 @@ fn create_new_note(
 fn get_ticket(conn: &mut rusqlite::Connection, ticket: String) -> Result<Ticket, rusqlite::Error> {
     info!("Querying database for ticket {}", ticket);
 
-    let mut statement = conn
-        .prepare("SELECT id, name FROM TICKETS WHERE name = ?;")
-        .expect("Failed to create query string");
-
-    statement.query_row([ticket], |row| {
-        Ok(Ticket {
-            id: row.get(0).unwrap(),
-            name: row.get(1).unwrap(),
+    conn.prepare("SELECT id, name FROM TICKETS WHERE name = ?;")
+        .expect("Failed to create query string")
+        .query_row([ticket], |row| {
+            Ok(Ticket {
+                id: row.get(0).unwrap(),
+                name: row.get(1).unwrap(),
+            })
         })
-    })
 }
 
 fn get_notes_from_ticket(conn: &mut rusqlite::Connection, ticket_id: i32) -> Vec<Note> {
