@@ -1,8 +1,7 @@
 use chrono::prelude::*;
 use clap::{App, Arg};
 use log::{info, trace, warn};
-use rusqlite::{params, Connection, MappedRows, Result, Row};
-// use std::collections::HashMap;
+use rusqlite::{params, Connection, Result, Row};
 
 #[derive(Debug)]
 struct Ticket {
@@ -20,14 +19,15 @@ struct Note {
 
 fn main() {
     trace!("Application intialization");
-    let matches = App::new("My Test App")
+    let matches = App::new("Coppernotes")
         .version("0.1.0")
-        .author("RayGervais <raygervais@gmail.com")
+        .author("RayGervais")
         .about("Teaches about argument parsing")
         .arg(
             Arg::with_name("ticket")
                 .short("t")
                 .long("ticket")
+                .required(true)
                 .takes_value(true)
                 .help("Related Kanban ticket"),
         )
